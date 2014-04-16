@@ -1,5 +1,7 @@
 package com.cloudera.sa.examples.crunch;
 
+import java.io.InputStream;
+
 import org.apache.crunch.fn.Aggregators;
 import org.apache.crunch.PCollection;
 import org.apache.crunch.PTable;
@@ -19,7 +21,9 @@ import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.Formats;
 
 import org.apache.avro.Schema;
+import org.apache.avro.Schema.Parser;
 import org.apache.avro.SchemaBuilder;
+
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -27,6 +31,42 @@ import org.apache.hadoop.util.ToolRunner;
 import com.cloudera.sa.examples.EmployeeRecord;
 
 public class GenerateSummaries extends CrunchTool {
+
+  private PCollection< EmployeeRecord > getEmployeeCollection( String repository )
+    throws Exception
+  {
+    DatasetRepository temp_fs_repo = DatasetRepositories.open( repository );
+    if( !temp_fs_repo.exists( "employee_records" ) ) {
+
+      /* TODO: migrate to resourceStream
+      final InputStream employeeRecordSchema = ClassLoader.getSystemResourceAsStream( "resources/schema/employee_record.avsc" );
+      Schema ers = new Parser().parse( employeeRecordSchema );
+      */
+
+      Schema employee_record_schema = SchemaBuilder.record("EmployeeRecord")
+          .fields()
+          .name("id").type().stringType().noDefault()
+          .name("name").type().stringType().noDefault()
+          .name("age").type().intType().noDefault()
+          .name("salary").type().doubleType().noDefault()
+          .name("years_spent").type().intType().noDefault()
+          .name("title").type().stringType().noDefault()
+          .name("department").type().stringType().noDefault()
+          .endRecord();
+
+      temp_fs_repo.create("employee_records", new DatasetDescriptor.Builder()
+          // FIXME: descriptor doesn't take location as arg yet -- .location( args[0] )
+          // .format(Formats.CSV)
+          .format(Formats.AVRO)
+          .schema(employee_record_schema)
+          .build());
+    }
+
+    Dataset<EmployeeRecord> employeeDataset = temp_fs_repo.load("employee_records");
+    return read(
+        CrunchDatasets.asSource(employeeDataset, EmployeeRecord.class)
+    );
+  }
 
   @Override
   public int run(String[] args) throws Exception {
@@ -41,31 +81,16 @@ public class GenerateSummaries extends CrunchTool {
     getPipeline().enableDebug();
     getPipeline().getConfiguration().set( "crunch.log.job.progress", "true" );
 
-    DatasetRepository temp_fs_repo = DatasetRepositories.open( args[0] );
-
-    if( !temp_fs_repo.exists( "employee_records" ) ) {
-      Schema employee_record_schema = SchemaBuilder.record("EmployeeRecord")
-          .fields()
-          .name("id").type().stringType().noDefault()
-          .name("name").type().stringType().noDefault()
-          .name("age").type().intType().noDefault()
-          .name("salary").type().doubleType().noDefault()
-          .name("years_spent").type().intType().noDefault()
-          .name("title").type().stringType().noDefault()
-          .name("department").type().stringType().noDefault()
-          .endRecord();
-
-      temp_fs_repo.create("employee_records", new DatasetDescriptor.Builder()
-          // FIXME: descriptor doesn't take location as arg yet -- .location( args[0] )
-          .format(Formats.CSV)
-          .schema(employee_record_schema)
-          .build());
+    PCollection<EmployeeRecord> employees = getEmployeeCollection( args[0] );
+    DatasetReader reader = DatasetRepositories.open( args[0] ).load( "employee_records" ).newReader();
+    try {
+      reader.open();
+      for (Object rec : reader) {
+        System.err.println("EmployeeRecord: " + rec);
+      }
+    } finally {
+      reader.close();
     }
-
-    Dataset<EmployeeRecord> employeeDataset = temp_fs_repo.load("employee_records");
-    PCollection<EmployeeRecord> employees = read(
-        CrunchDatasets.asSource(employeeDataset, EmployeeRecord.class)
-    );
 
     PTable<String, Double> summaries = employees
         // convert PCollection<EmployeeRecord> -> PTable< Department, EmployeeRecord >
