@@ -29,6 +29,7 @@ public class GenerateSummaries extends CrunchTool {
 
     if( args.length != 1 ) {
       System.out.println("Usage: GenerateSummaries <employee-records-location> ");
+      System.out.println("\n\nExample: mvn kite:run-tool -Dkite.args=\"repo:hdfs:/tmp/temp-repo\"");
       System.exit( -1 );
     }
 
@@ -36,7 +37,7 @@ public class GenerateSummaries extends CrunchTool {
     getPipeline().enableDebug();
     getPipeline().getConfiguration().set( "crunch.log.job.progress", "true" );
 
-    DatasetRepository temp_fs_repo = DatasetRepositories.open( "repo:hdfs:/tmp/crunch-example" );
+    DatasetRepository temp_fs_repo = DatasetRepositories.open( args[0] );
 
     if( !temp_fs_repo.exists( "employee_records" ) ) {
       Schema employee_record_schema = SchemaBuilder.record("EmployeeRecord")
@@ -53,13 +54,12 @@ public class GenerateSummaries extends CrunchTool {
       temp_fs_repo.create("employee_records", new DatasetDescriptor.Builder()
           // FIXME: descriptor doesn't take location as arg yet -- .location( args[0] )
           .format(Formats.CSV)
-          .property("kite.csv.delimiter", ",")
           .schema(employee_record_schema)
           .build());
     }
 
-    Dataset< EmployeeRecord > employee_records = temp_fs_repo.load( "employee_records" );
-    DatasetReader reader = employee_records.newReader();
+    
+    DatasetReader reader = temp_fs_repo.load( "employee_records" ).newReader();
     try {
       reader.open();
       for (Object rec : reader) {
