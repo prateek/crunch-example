@@ -9,16 +9,9 @@ import org.apache.crunch.MapFn;
 import org.apache.crunch.Pair;
 import org.apache.crunch.Target;
 import org.apache.crunch.types.avro.Avros;
+import org.apache.crunch.io.At;
 import org.apache.crunch.util.CrunchTool;
 import org.apache.hadoop.util.ToolRunner;
-
-import org.kitesdk.data.crunch.CrunchDatasets;
-import org.kitesdk.data.DatasetDescriptor;
-import org.kitesdk.data.Dataset;
-import org.kitesdk.data.DatasetReader;
-import org.kitesdk.data.DatasetRepositories;
-import org.kitesdk.data.DatasetRepository;
-import org.kitesdk.data.Formats;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
@@ -36,68 +29,14 @@ public class GenerateSummaries extends CrunchTool {
   private PCollection< EmployeeRecord > getEmployeeCollection( String repository )
     throws Exception
   {
-    DatasetRepository temp_fs_repo = DatasetRepositories.open( repository );
-    if( !temp_fs_repo.exists( "employee_records" ) ) {
-
-      /* TODO: migrate to resourceStream
-      final InputStream employeeRecordSchema = ClassLoader.getSystemResourceAsStream( "resources/schema/employee_record.avsc" );
-      Schema ers = new Parser().parse( employeeRecordSchema );
-      */
-
-      Schema employee_record_schema = SchemaBuilder.record("EmployeeRecord")
-          .fields()
-          .name("id").type().stringType().noDefault()
-          .name("name").type().stringType().noDefault()
-          .name("age").type().intType().noDefault()
-          .name("salary").type().doubleType().noDefault()
-          .name("years_spent").type().intType().noDefault()
-          .name("title").type().stringType().noDefault()
-          .name("department").type().stringType().noDefault()
-          .endRecord();
-
-      temp_fs_repo.create("employee_records", new DatasetDescriptor.Builder()
-          // FIXME: descriptor doesn't take location as arg yet -- .location( args[0] )
-          // .format(Formats.CSV)
-          .format(Formats.AVRO)
-          .schema(employee_record_schema)
-          .build());
-    }
-
-    Dataset<EmployeeRecord> employeeDataset = temp_fs_repo.load("employee_records");
-    return read(
-        CrunchDatasets.asSource(employeeDataset, EmployeeRecord.class)
-    );
-  }
-
-  private Dataset<EmployeeSummary> getSummaryDataset( String repository )
-    throws Exception
-  {
-    DatasetRepository repo = DatasetRepositories.open( repository );
-    if( !repo.exists( "employee_summary" ) ) {
-
-      Schema summary = SchemaBuilder.record("EmployeeSummary")
-          .fields()
-          .name("salary").type().doubleType().noDefault()
-          .name("department").type().stringType().noDefault()
-          .endRecord();
-
-      repo.create("employee_summary", new DatasetDescriptor.Builder()
-          .format(Formats.AVRO)
-          .schema(summary)
-          .build());
-    }
-
-    Dataset<EmployeeSummary> summariesDataset = repo.load("employee_summary");
-    return summariesDataset;
+    return null;
   }
 
   @Override
   public int run(String[] args) throws Exception {
 
-    if( args.length != 1 ) {
-      System.out.println("Usage: GenerateSummaries <employee-records-location>");
-      System.out.println();
-      System.out.println("Example: mvn kite:run-tool -Dkite.args=\"repo:hdfs:/tmp/temp-repo\"");
+    if( args.length != 2 ) {
+      System.out.println("Usage: GenerateSummaries <input-path> <output-path>");
       System.out.println();
       System.exit( -1 );
     }
@@ -144,22 +83,12 @@ public class GenerateSummaries extends CrunchTool {
             },
             Avros.doubles());
 
-    Dataset< EmployeeSummary > summariesDataset = getSummaryDataset( args[0] );
-    getPipeline().write(summaries,
-        CrunchDatasets.asTarget(summariesDataset), Target.WriteMode.APPEND);
-
-    DatasetReader reader = DatasetRepositories.open( args[0] ).load( "employee_summary" ).newReader();
-    try {
-      reader.open();
-      for (Object rec : reader) {
-        System.err.println("EmployeeSummary: " + rec);
-      }
-    } finally {
-      reader.close();
-    }
+    summaries.write(
+        At.avroFile(args[1], EmployeeSummary.class), Target.WriteMode.APPEND );
 
     return run().succeeded() ? 0 : 1;
   }
+
   public static void main(String[] args) throws Exception {
     int rc = ToolRunner.run(new GenerateSummaries(), args);
     System.exit(rc);
