@@ -26,3 +26,10 @@ GROUP BY
 
 
 
+#### Notes:####
+* Generate the schema classes - 
+```sh
+java -jar avro-tools-1.7.6.jar compile schema \
+  src/resources/schema/employee_summary.avsc src/java
+```
+

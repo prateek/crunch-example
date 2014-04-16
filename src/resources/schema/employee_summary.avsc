@@ -1,0 +1,27 @@
+{
+  "type" : "record",
+  "name" : "employee_record",
+  "namespace" : "com.cloudera.sa.examples",
+  "fields" : [ {
+    "name" : "id",
+    "type" : "string"
+  }, {
+    "name" : "name",
+    "type" : "string"
+  }, {
+    "name" : "age",
+    "type" : "int"
+  }, {
+    "name" : "salary",
+    "type" : "double"
+  }, {
+    "name" : "years_spent",
+    "type" : "int"
+  }, {
+    "name" : "title",
+    "type" : "string"
+  }, {
+    "name" : "department",
+    "type" : "string"
+  } ]
+}
