@@ -1,0 +1,36 @@
+{
+   "id": "1"
+ , "name": "john"
+ , "age": 22
+ , "salary": 4000
+ , "years_spent": 4
+ , "title": "Hooligan"
+ , "department": "Theatre"
+}
+{
+   "id": "2"
+ , "name": "bob"
+ , "age": 25
+ , "salary": 8000
+ , "years_spent": 4
+ , "title": "Maverick"
+ , "department": "Marketing"
+}
+{
+   "id": "3"
+ , "name": "mike"
+ , "age": 22
+ , "salary": 3000
+ , "years_spent": 4
+ , "title": "something"
+ , "department": "Marketing"
+}
+{
+   "id": "4"
+ , "name": "joe"
+ , "age": 29
+ , "salary": 5000
+ , "years_spent": 4
+ , "title": "King"
+ , "department": "Marketing"
+}

@@ -95,8 +95,10 @@ public class GenerateSummaries extends CrunchTool {
   public int run(String[] args) throws Exception {
 
     if( args.length != 1 ) {
-      System.out.println("Usage: GenerateSummaries <employee-records-location> <summary-records-location>");
-      System.out.println("\n\nExample: mvn kite:run-tool -Dkite.args=\"repo:hdfs:/tmp/temp-repo\"");
+      System.out.println("Usage: GenerateSummaries <employee-records-location>");
+      System.out.println();
+      System.out.println("Example: mvn kite:run-tool -Dkite.args=\"repo:hdfs:/tmp/temp-repo\"");
+      System.out.println();
       System.exit( -1 );
     }
 
@@ -105,7 +107,6 @@ public class GenerateSummaries extends CrunchTool {
     getPipeline().getConfiguration().set( "crunch.log.job.progress", "true" );
 
     PCollection<EmployeeRecord> employees = getEmployeeCollection( args[0] );
-
     PTable<String, Double> summaries = employees
         // convert PCollection<EmployeeRecord> -> PTable< Department, EmployeeRecord >
         .by("ExtractDepartment",
