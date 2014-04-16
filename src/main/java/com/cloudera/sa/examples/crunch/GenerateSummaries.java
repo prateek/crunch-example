@@ -29,6 +29,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import com.cloudera.sa.examples.EmployeeRecord;
+import com.cloudera.sa.examples.EmployeeSummary;
 
 public class GenerateSummaries extends CrunchTool {
 
@@ -68,11 +69,33 @@ public class GenerateSummaries extends CrunchTool {
     );
   }
 
+  private Dataset<EmployeeSummary> getSummaryDataset( String repository )
+    throws Exception
+  {
+    DatasetRepository repo = DatasetRepositories.open( repository );
+    if( !repo.exists( "employee_summary" ) ) {
+
+      Schema summary = SchemaBuilder.record("EmployeeSummary")
+          .fields()
+          .name("salary").type().doubleType().noDefault()
+          .name("department").type().stringType().noDefault()
+          .endRecord();
+
+      repo.create("employee_summary", new DatasetDescriptor.Builder()
+          .format(Formats.AVRO)
+          .schema(summary)
+          .build());
+    }
+
+    Dataset<EmployeeSummary> summariesDataset = repo.load("employee_summary");
+    return summariesDataset;
+  }
+
   @Override
   public int run(String[] args) throws Exception {
 
     if( args.length != 1 ) {
-      System.out.println("Usage: GenerateSummaries <employee-records-location> ");
+      System.out.println("Usage: GenerateSummaries <employee-records-location> <summary-records-location>");
       System.out.println("\n\nExample: mvn kite:run-tool -Dkite.args=\"repo:hdfs:/tmp/temp-repo\"");
       System.exit( -1 );
     }
@@ -82,20 +105,15 @@ public class GenerateSummaries extends CrunchTool {
     getPipeline().getConfiguration().set( "crunch.log.job.progress", "true" );
 
     PCollection<EmployeeRecord> employees = getEmployeeCollection( args[0] );
-    DatasetReader reader = DatasetRepositories.open( args[0] ).load( "employee_records" ).newReader();
-    try {
-      reader.open();
-      for (Object rec : reader) {
-        System.err.println("EmployeeRecord: " + rec);
-      }
-    } finally {
-      reader.close();
-    }
 
     PTable<String, Double> summaries = employees
         // convert PCollection<EmployeeRecord> -> PTable< Department, EmployeeRecord >
         .by("ExtractDepartment",
-            new ExtractDepartment(), Avros.strings())
+            new MapFn< EmployeeRecord, String > () {
+              public String map( EmployeeRecord record ) {
+                return record.getDepartment();
+              }
+            }, Avros.strings())
 
         // extract salary from values
         // i.e. PTable< Department, EmployeeRecord > -> PTable< Department, Pair< Salary, 1 > >
@@ -125,22 +143,22 @@ public class GenerateSummaries extends CrunchTool {
             },
             Avros.doubles());
 
-    // getPipeline().write(summaries,
-    //     CrunchDatasets.asTarget(summariesDataset),
-    //     Target.WriteMode.APPEND);
+    Dataset< EmployeeSummary > summariesDataset = getSummaryDataset( args[0] );
+    getPipeline().write(summaries,
+        CrunchDatasets.asTarget(summariesDataset), Target.WriteMode.APPEND);
+
+    DatasetReader reader = DatasetRepositories.open( args[0] ).load( "employee_summary" ).newReader();
+    try {
+      reader.open();
+      for (Object rec : reader) {
+        System.err.println("EmployeeSummary: " + rec);
+      }
+    } finally {
+      reader.close();
+    }
 
     return run().succeeded() ? 0 : 1;
   }
-
-  private static class ExtractDepartment
-      extends MapFn< EmployeeRecord, String > {
-
-    @Override
-    public String map( EmployeeRecord record ) {
-      return record.getDepartment();
-    }
-  }
-
   public static void main(String[] args) throws Exception {
     int rc = ToolRunner.run(new GenerateSummaries(), args);
     System.exit(rc);
