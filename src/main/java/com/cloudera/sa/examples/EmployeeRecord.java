@@ -9,13 +9,13 @@ package com.cloudera.sa.examples;
 public class EmployeeRecord extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
   public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"EmployeeRecord\",\"namespace\":\"com.cloudera.sa.examples\",\"fields\":[{\"name\":\"id\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}},{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}},{\"name\":\"age\",\"type\":\"int\"},{\"name\":\"salary\",\"type\":\"double\"},{\"name\":\"years_spent\",\"type\":\"int\"},{\"name\":\"title\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}},{\"name\":\"department\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"}}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
-  @Deprecated public java.lang.String id;
-  @Deprecated public java.lang.String name;
-  @Deprecated public int age;
-  @Deprecated public double salary;
-  @Deprecated public int years_spent;
-  @Deprecated public java.lang.String title;
-  @Deprecated public java.lang.String department;
+   private java.lang.String id;
+   private java.lang.String name;
+   private int age;
+   private double salary;
+   private int years_spent;
+   private java.lang.String title;
+   private java.lang.String department;
 
   /**
    * Default constructor.  Note that this does not initialize fields
