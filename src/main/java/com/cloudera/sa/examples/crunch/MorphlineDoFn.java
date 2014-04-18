@@ -28,7 +28,7 @@ public class MorphlineDoFn
   private static final Logger LOGGER = LoggerFactory.getLogger( MorphlineDoFn.class );
 
   /*
-   * Why are the objects below static, you ask?
+   * Why are the objects below transient, you ask?
    *
    * So, turns out the note below from Josh wasn't pointless -
    *   One place where the serializable DoFns can trip up new Crunch developers is when they specify in-line
@@ -36,18 +36,21 @@ public class MorphlineDoFn
    *   will execute locally with Crunch's MemPipeline, the MRPipeline or SparkPipeline versions will fail with
    *   Java's NotSerializableException.
    */
-  private static Command morphline;
-  private static EmployeeRecord employeeRecord;
-  private static MorphlineContext morphlineContext;
+  private transient Command morphline;
+  private transient EmployeeRecord employeeRecord;
+  private transient MorphlineContext morphlineContext;
 
+  // temporary var used to sync state across Morphline and
+  // Crunch's DoFn calls.
+  private transient Record record ;
   final static String morphLineId = "parse_employee_record";
-  private static final Record record = new Record();
 
-  public MorphlineDoFn() throws Exception {
-    setup();
+  public MorphlineDoFn() {
   }
 
   private void setup() throws Exception {
+    record = new Record();
+    morphlineContext = new MorphlineContext.Builder().build();
     URL morphlineURL   = getClass().getResource("/morphline/parse-employee-record.conf");
 
     File morphlineFile = File.createTempFile(
@@ -56,11 +59,19 @@ public class MorphlineDoFn
     );
     IOUtils.copy( morphlineURL.openStream(), FileUtils.openOutputStream( morphlineFile ) );
 
-    morphlineContext = new MorphlineContext.Builder().build();
-
-    // TODO: file Jira, compiler should accept an inputStream/inputFile
+    // TODO: file JIRA, compiler should accept an inputStream/inputFile
     morphline = new Compiler().compile(
         morphlineFile, morphLineId, morphlineContext, this /* LastCommand */ );
+  }
+
+  @Override
+  public void initialize() {
+    try {
+      setup();
+    } catch(Exception e){
+      e.printStackTrace();
+      LOGGER.error( "Exception: {}", e );
+    }
   }
 
   @Override
@@ -69,7 +80,7 @@ public class MorphlineDoFn
     record.removeAll( Fields.ATTACHMENT_BODY );
     record.put( Fields.ATTACHMENT_BODY, new ByteArrayInputStream(line.toString().getBytes()) );
 
-    if( !morphline.process(record) ) {
+    if( ! morphline.process(record) ) {
       LOGGER.error( "Unable to process record: {}", line );
       return;
     }
@@ -87,7 +98,7 @@ public class MorphlineDoFn
 
   @Override
   public boolean process(Record record) {
-    LOGGER.info( "Record received: {}", record );
+    LOGGER.error( "Record received: {}", record );
 
     employeeRecord = null;
     return true;

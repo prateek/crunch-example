@@ -55,7 +55,8 @@ public class GenerateSummaries extends CrunchTool {
     PCollection<String> lines = getPipeline().read( From.textFile( tokens[0] ) );
     PTable<String, Double> summaries = lines
         // convert PCollection< String > -> PCollection< EmployeeRecord >
-        .parallelDo( "GenerateAvroRecords", new MorphlineDoFn(), Avros.reflects(EmployeeRecord.class) )
+        .parallelDo( "GenerateAvroRecords",
+            new MorphlineDoFn(), Avros.reflects(EmployeeRecord.class) )
 
         // convert PCollection<EmployeeRecord> -> PTable< Department, EmployeeRecord >
         .by("ExtractDepartment",
