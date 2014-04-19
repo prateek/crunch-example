@@ -12,7 +12,6 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <kite-version>0.10.0</kite-version>
     <avro.version>1.7.6</avro.version>
   </properties>
 
@@ -20,33 +19,17 @@
 
     <dependency>
       <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-core</artifactId>
-      <version>${kite-version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.kitesdk</groupId>
       <artifactId>kite-morphlines-all</artifactId>
-      <version>${kite-version}</version>
+      <version>0.12.1</version>
       <type>pom</type>
     </dependency>
 
     <dependency>
       <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-crunch</artifactId>
-      <version>${kite-version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-flume</artifactId>
-      <version>${kite-version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-hcatalog</artifactId>
-      <version>${kite-version}</version>
+      <artifactId>kite-morphlines-core</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+      <version>0.12.1</version>
     </dependency>
 
     <dependency>
@@ -246,27 +229,29 @@
 
   <build>
     <plugins>
+
       <plugin>
-        <groupId>org.kitesdk</groupId>
-        <artifactId>kite-maven-plugin</artifactId>
-        <version>${kite-version}</version>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.4</version>
         <configuration>
-          <toolClass>com.cloudera.sa.examples.crunch.GenerateSummaries</toolClass>
-          <hadoopConfiguration>
-            <property>
-              <name>fs.default.name</name>
-              <value>hdfs://localhost.localdomain:8020/</value>
-            </property>
-            <property>
-              <name>hive.metastore.uris</name>
-              <value>thrift://localhost:9083</value>
-            </property>
-            <property>
-              <name>mapred.job.tracker</name>
-              <value>localhost:8021</value>
-            </property>
-          </hadoopConfiguration>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+          <archive>
+            <manifest>
+              <mainClass>com.cloudera.sa.examples.crunch.GenerateSummaries</mainClass>
+            </manifest>
+          </archive>
         </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly</id> <!-- this is used for inheritance merges -->
+            <phase>package</phase> <!-- bind to the packaging phase -->
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>

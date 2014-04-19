@@ -39,14 +39,14 @@ public class GenerateSummaries extends CrunchTool {
   @Override
   public int run(String[] args) throws Exception {
 
-    if( args.length != 1 ) {
+    if( args.length != 2 ) {
       System.out.println("Usage: GenerateSummaries <input-path> <output-path>");
       System.out.println();
 
       System.exit( -1 );
     }
 
-    String[] tokens = args[0].trim().split(" ");
+    String[] tokens = args;
 
     /* debugging flags */
     getPipeline().enableDebug();
