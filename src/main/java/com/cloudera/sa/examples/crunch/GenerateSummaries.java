@@ -46,13 +46,11 @@ public class GenerateSummaries extends CrunchTool {
       System.exit( -1 );
     }
 
-    String[] tokens = args;
-
     /* debugging flags */
     getPipeline().enableDebug();
     getPipeline().getConfiguration().set( "crunch.log.job.progress", "true" );
 
-    PCollection<String> lines = getPipeline().read( From.textFile( tokens[0] ) );
+    PCollection<String> lines = getPipeline().read( From.textFile( args[0] ) );
     PTable<String, Double> summaries = lines
         // convert PCollection< String > -> PCollection< EmployeeRecord >
         .parallelDo( "GenerateAvroRecords",
@@ -95,7 +93,7 @@ public class GenerateSummaries extends CrunchTool {
             Avros.doubles());
 
     summaries.write(
-        At.avroFile(tokens[1], EmployeeSummary.class), Target.WriteMode.APPEND );
+        At.avroFile(args[1], EmployeeSummary.class), Target.WriteMode.APPEND );
 
     return run().succeeded() ? 0 : 1;
   }

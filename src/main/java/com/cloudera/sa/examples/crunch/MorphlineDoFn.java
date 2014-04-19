@@ -3,6 +3,7 @@ package com.cloudera.sa.examples.crunch;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.io.File;
+import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -11,16 +12,21 @@ import org.apache.commons.io.FileUtils;
 import org.apache.crunch.DoFn;
 import org.apache.crunch.Emitter;
 
+import org.apache.avro.file.SeekableByteArrayInput;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.specific.SpecificDatumReader;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.cloudera.sa.examples.EmployeeRecord;
 
 import org.kitesdk.morphline.api.Command;
 import org.kitesdk.morphline.api.MorphlineContext;
 import org.kitesdk.morphline.api.Record;
 import org.kitesdk.morphline.base.Compiler;
 import org.kitesdk.morphline.base.Fields;
+
+import com.cloudera.sa.examples.EmployeeRecord;
 
 public class MorphlineDoFn
   extends DoFn< String, EmployeeRecord > implements Command
@@ -59,7 +65,7 @@ public class MorphlineDoFn
     );
     IOUtils.copy( morphlineURL.openStream(), FileUtils.openOutputStream( morphlineFile ) );
 
-    // TODO: file JIRA, compiler should accept an inputStream/inputFile
+    // TODO: file JIRA, Compiler api should accept an InputStream
     morphline = new Compiler().compile(
         morphlineFile, morphLineId, morphlineContext, this /* LastCommand */ );
   }
@@ -69,7 +75,6 @@ public class MorphlineDoFn
     try {
       setup();
     } catch(Exception e){
-      e.printStackTrace();
       LOGGER.error( "Exception: {}", e );
     }
   }
@@ -84,6 +89,9 @@ public class MorphlineDoFn
       LOGGER.error( "Unable to process record: {}", line );
       return;
     }
+
+    // the process command above parses the record
+    // and stores it into the employeeRecord object
     emitter.emit( employeeRecord );
   }
 
@@ -98,9 +106,32 @@ public class MorphlineDoFn
 
   @Override
   public boolean process(Record record) {
-    LOGGER.error( "Record received: {}", record );
-
     employeeRecord = null;
+    LOGGER.debug( "Record received: {}", record );
+
+    List fields = record.get( Fields.ATTACHMENT_BODY ) ;
+    if( fields.size() != 1 ) {
+      LOGGER.error( "Record [ {} ] had incorrect number of fields - [{}]", record, fields.size() );
+      return false;
+    }
+
+    try {
+      byte[] byteArray = (byte[]) fields.get( 0 );
+      SeekableByteArrayInput inputStream = new SeekableByteArrayInput( byteArray );
+
+      DatumReader<EmployeeRecord> userDatumReader
+        = new SpecificDatumReader<EmployeeRecord>(EmployeeRecord.class);
+
+      DataFileReader<EmployeeRecord> dataFileReader
+        = new DataFileReader<EmployeeRecord>(inputStream, userDatumReader);
+
+      employeeRecord = dataFileReader.next();
+
+    } catch(Exception e){
+      LOGGER.error( "Unable to process {}, exception: {}", record, e);
+      return false;
+    }
+
     return true;
   }
 }
