@@ -26,10 +26,8 @@ import org.kitesdk.morphline.api.Record;
 import org.kitesdk.morphline.base.Compiler;
 import org.kitesdk.morphline.base.Fields;
 
-import com.cloudera.sa.examples.EmployeeRecord;
-
-public class MorphlineDoFn
-  extends DoFn< String, EmployeeRecord > implements Command
+public class MorphlineDoFn< T >
+  extends DoFn< String, T > implements Command
 {
   private static final Logger LOGGER = LoggerFactory.getLogger( MorphlineDoFn.class );
 
@@ -43,31 +41,36 @@ public class MorphlineDoFn
    *   Java's NotSerializableException.
    */
   private transient Command morphline;
-  private transient EmployeeRecord employeeRecord;
   private transient MorphlineContext morphlineContext;
 
   // temporary var used to sync state across Morphline and
   // Crunch's DoFn calls.
+  private transient T temporaryRecord;
   private transient Record record ;
-  final static String morphLineId = "parse_employee_record";
+  private String morphlineId;
+  private String morphlineResourceFile;
+  private Class<T> recordClass;
 
-  public MorphlineDoFn() {
+  public MorphlineDoFn(String morphlineId, String morphlineRf, Class<T> RecordType) {
+    this.morphlineId           = morphlineId;
+    this.morphlineResourceFile = morphlineRf;
+    this.recordClass           = RecordType;
   }
 
   private void setup() throws Exception {
     record = new Record();
     morphlineContext = new MorphlineContext.Builder().build();
-    URL morphlineURL   = getClass().getResource("/morphline/parse-employee-record.conf");
+    URL morphlineURL = getClass().getResource( morphlineResourceFile );
 
     File morphlineFile = File.createTempFile(
-        FilenameUtils.getBaseName( morphlineURL.getFile() )
+        FilenameUtils.getBaseName(  morphlineURL.getFile() )
       , FilenameUtils.getExtension( morphlineURL.getFile() )
     );
     IOUtils.copy( morphlineURL.openStream(), FileUtils.openOutputStream( morphlineFile ) );
 
     // TODO: file JIRA, Compiler api should accept an InputStream
     morphline = new Compiler().compile(
-        morphlineFile, morphLineId, morphlineContext, this /* LastCommand */ );
+        morphlineFile, morphlineId, morphlineContext, this /* LastCommand */ );
   }
 
   @Override
@@ -80,7 +83,7 @@ public class MorphlineDoFn
   }
 
   @Override
-  public void process( String line, Emitter< EmployeeRecord > emitter ) {
+  public void process( String line, Emitter< T > emitter ) {
 
     record.removeAll( Fields.ATTACHMENT_BODY );
     record.put( Fields.ATTACHMENT_BODY, new ByteArrayInputStream(line.toString().getBytes()) );
@@ -91,8 +94,8 @@ public class MorphlineDoFn
     }
 
     // the process command above parses the record
-    // and stores it into the employeeRecord object
-    emitter.emit( employeeRecord );
+    // and stores it into the temporaryRecord
+    emitter.emit( temporaryRecord );
   }
 
   @Override
@@ -106,7 +109,7 @@ public class MorphlineDoFn
 
   @Override
   public boolean process(Record record) {
-    employeeRecord = null;
+    temporaryRecord = null;
     LOGGER.debug( "Record received: {}", record );
 
     List fields = record.get( Fields.ATTACHMENT_BODY ) ;
@@ -116,16 +119,11 @@ public class MorphlineDoFn
     }
 
     try {
-      byte[] byteArray = (byte[]) fields.get( 0 );
-      SeekableByteArrayInput inputStream = new SeekableByteArrayInput( byteArray );
-
-      DatumReader<EmployeeRecord> userDatumReader
-        = new SpecificDatumReader<EmployeeRecord>(EmployeeRecord.class);
-
-      DataFileReader<EmployeeRecord> dataFileReader
-        = new DataFileReader<EmployeeRecord>(inputStream, userDatumReader);
-
-      employeeRecord = dataFileReader.next();
+      byte[] byteArray                   = (byte[]) fields.get( 0 );
+      SeekableByteArrayInput inputStream = new SeekableByteArrayInput(byteArray);
+      DatumReader<T> userDatumReader     = new SpecificDatumReader<T>(this.recordClass);
+      DataFileReader<T> dataFileReader   = new DataFileReader<T>(inputStream, userDatumReader);
+      temporaryRecord                    = dataFileReader.next();
 
     } catch(Exception e){
       LOGGER.error( "Unable to process {}, exception: {}", record, e);
